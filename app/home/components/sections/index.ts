@@ -1,0 +1,8 @@
+export { default as IntroSection } from './intro'
+export { default as PassionSection } from './passion'
+export { default as PassionSectionQuote } from './passion.quote'
+export { default as MarqueeSection } from './marquee'
+export { default as SkillsSection } from './skills'
+export { default as ProjectsSection } from './projects'
+export { default as ContactSection } from './contact'
+export { default as Footer } from './footer'

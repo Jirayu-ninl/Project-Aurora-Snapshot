@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// generator dbml {
+//   provider = "prisma-dbml-generator"
+//   output   = "../dbml"
+// }
+
+datasource db {
+  provider = "mongodb"
+  // url      = env("MONGODB_URI")
+  url       = env("ACCELERATE_URI")
+  directUrl = env("MONGODB_URI")
+}
+
+model Example {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now()) @db.Timestamp
+  updatedAt DateTime @updatedAt
+}
+
+// ** ---------------------------  ** //
+// **        Initialization        ** //
+// ** ---------------------------  ** //
+
+model IceJiVerse {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt   DateTime @default(now()) @db.Timestamp
+  title       String   @unique
+  description String?
+  content     Json
+}
+
+model Announcement {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  content   String
+  emoji     String?
+  link      String?
+  color     String    @default("primary")
+  createdAt DateTime  @default(now()) @db.Timestamp
+  updatedAt DateTime  @updatedAt
+  startsAt  DateTime?
+  endsAt    DateTime?
+  metadata  Json?
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum UserPlan {
+  FREE
+  PLUS
+  PRO
+  ELITE
+}
+
+// ** ------------------------------  ** //
+// **     Necessary for Next auth     ** //
+// ** ------------------------------  ** //
+
+model User {
+  id             String                @id @default(auto()) @map("_id") @db.ObjectId
+  username       String?               @unique
+  name           String?
+  credential     Credential?
+  role           UserRole              @default(USER)
+  plan           UserPlan              @default(FREE)
+  subscriptionId String?
+  subscription   CustomerSubscription?
+  email          String                @unique
+  emailVerified  DateTime?
+  createdAt      DateTime              @default(now()) @db.Timestamp
+  image          String?
+  metadata       Json                  @default("{}")
+  active         Boolean               @default(true)
+  accounts       Account[]
+  wallets        Wallet[]
+  balance        Float                 @default(0)
+  sessions       Session[]
+  notifications  Notification[]
+  purchases      Purchase[]
+  projectIds     String[]              @default([]) @db.ObjectId
+  Projects       Project[]             @relation(fields: [projectIds], references: [id])
+}
+
+model Account {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String  @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // @db.Text
+  access_token      String? // @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // @db.Text
+  session_state     String?
+  metadata          Json    @default("{}")
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Credential {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  email    String @unique
+  password String
+  user     User   @relation(fields: [email], references: [email], onDelete: Cascade)
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sessionToken String   @unique
+  userId       String   @db.ObjectId
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ** ---------------------------  ** //
+// **           User Data          ** //
+// ** ---------------------------  ** //
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now()) @db.Timestamp
+  isRead    Boolean
+  title     String
+  content   String
+  link      String
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum WalletChain {
+  ETH
+  BEP20
+  SOL
+  NEAR
+  AVAX
+  ALN
+  IJN
+}
+
+model Wallet {
+  id                  String      @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt           DateTime    @default(now()) @db.Timestamp
+  updatedAt           DateTime?   @updatedAt
+  address             String
+  title               String
+  content             String
+  balance             Int
+  latestBalanceUpdate DateTime    @default(now())
+  chain               WalletChain
+  userId              String      @db.ObjectId
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ** ---------------------------  ** //
+// **            Product           ** //
+// ** ---------------------------  ** //
+
+model CustomerSubscription {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String    @unique @db.ObjectId
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metadata           Json
+  status             String?
+  price              Int
+  productId          String    @db.ObjectId
+  product            Product   @relation(fields: [productId], references: [id])
+  cancelAtPeriodEnd  Boolean
+  cancelAt           DateTime?
+  canceledAt         DateTime?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt          DateTime
+  endedAt            DateTime?
+  updatedAt          DateTime?
+}
+
+model Product {
+  id                    String                 @id @default(auto()) @map("_id") @db.ObjectId
+  active                Boolean
+  name                  String
+  description           String?
+  metadata              Json
+  price                 Int
+  image                 String?
+  gallery               String[]               @default([])
+  customerSubscriptions CustomerSubscription[]
+  purchases             Purchase[]
+}
+
+model Purchase {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  customer  User     @relation(fields: [userId], references: [id])
+  productId String   @db.ObjectId
+  product   Product? @relation(fields: [productId], references: [id])
+  status    String?
+  createdAt DateTime @default(now())
+}
+
+// ** ----------------------  ** //
+// **           APP           ** //
+// ** ----------------------  ** //
+
+enum ProjectName {
+  WEBSITE
+}
+
+model Project {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String[]    @default([]) @db.ObjectId
+  users       User[]      @relation(fields: [userId], references: [id])
+  projectName ProjectName
+  createdAt   DateTime    @default(now()) @db.Timestamp
+  updatedAt   DateTime?   @updatedAt
+  metadata    Json        @default("{}")
+  websites    Website[]
+}
+
+// ** ------------------------------  ** //
+// **           APP WEBSITE           ** //
+// ** ------------------------------  ** //
+
+model Website {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  projectIds      String              @db.ObjectId
+  project         Project             @relation(fields: [projectIds], references: [id], onDelete: Cascade)
+  createdAt       DateTime            @default(now()) @db.Timestamp
+  updatedAt       DateTime?           @updatedAt
+  name            String
+  description     String?
+  domain          String?
+  metadata        Json                @default("{}")
+  extenstions     WebsiteExtenstion[]
+  websiteSections WebsiteSection[]
+}
+
+model WebsiteSection {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  websiteId   String    @db.ObjectId
+  website     Website   @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @db.Timestamp
+  updatedAt   DateTime? @updatedAt
+  name        String
+  description String?
+  metadata    Json      @default("{}")
+}
+
+model WebsiteExtenstion {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  websiteId String    @db.ObjectId
+  website   Website   @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @db.Timestamp
+  updatedAt DateTime? @updatedAt
+  name      String
+  metadata  Json      @default("{}")
+}
